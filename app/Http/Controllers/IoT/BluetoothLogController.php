@@ -45,14 +45,14 @@ class BluetoothLogController extends Controller
                     'message' => 'Pelanggan tidak ditemukan'
                 ], 404);
             }
-            
-            
+
+
 
             // Proses dan simpan log data
             $logsToInsert = [];
             foreach ($logData as $log) {
                 $total = floatval($log['total']);
-                $volumeM3 = $total / 1000; 
+                $volumeM3 = $total / 1000;
 
                 $logsToInsert[] = [
                     'pelanggan_id' => $pelangganId,
@@ -76,7 +76,7 @@ class BluetoothLogController extends Controller
             ], 201);
 
         } catch (\Exception $e) {
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Terjadi kesalahan server',
@@ -92,7 +92,7 @@ class BluetoothLogController extends Controller
     {
         try {
             $validator = Validator::make(['pelanggan_id' => $pelangganId], [
-                'pelanggan_id' => 'required|integer|exists:pelanggan,pelangganId',
+                'pelanggan_id' => 'required|integer|exists:mspelanggan,pelangganId',
             ]);
 
             if ($validator->fails()) {
