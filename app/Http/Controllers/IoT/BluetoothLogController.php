@@ -92,7 +92,7 @@ class BluetoothLogController extends Controller
     {
         try {
             $validator = Validator::make(['pelanggan_id' => $pelangganId], [
-                'pelanggan_id' => 'required|integer|exists:mspelanggan,pelangganKode',
+                'pelanggan_id' => 'required|exists:mspelanggan,pelangganKode',
             ]);
 
             if ($validator->fails()) {
