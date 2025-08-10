@@ -112,6 +112,7 @@ class BluetoothLogController extends Controller
             ]);
 
         } catch (\Exception $e) {
+            Log::error('Error in getByPelanggan: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Terjadi kesalahan server',
@@ -143,6 +144,7 @@ class BluetoothLogController extends Controller
             ]);
 
         } catch (\Exception $e) {
+            Log::error('Error in getUsageStats: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Terjadi kesalahan server',
