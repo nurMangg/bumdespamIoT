@@ -103,7 +103,8 @@ class BluetoothLogController extends Controller
             }
 
             $logs = BluetoothLog::where('pelanggan_id', $pelangganId)
-                ->paginate(20);
+                ->orderBy('datetime', 'asc')
+                ->get();
 
             return response()->json([
                 'success' => true,
