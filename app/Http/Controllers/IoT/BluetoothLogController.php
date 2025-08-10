@@ -96,6 +96,7 @@ class BluetoothLogController extends Controller
             ]);
 
             if ($validator->fails()) {
+                Log::error('Error in getByPelanggan: ' . $validator->errors());
                 return response()->json([
                     'success' => false,
                     'message' => 'Pelanggan tidak ditemukan'
