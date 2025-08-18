@@ -58,62 +58,76 @@ class TagihanController extends Controller
     }
 
     public function index(Request $request)
-{
-    if ($request->ajax()) {
-        $data = Pelanggan::with([
-            'golongan',
-            'tagihanTerakhir.bulan', // Relasi ke tagihan terakhir + bulan
-            'tagihanBelumLunas'      // Relasi custom untuk tagihan belum lunas/pending
-        ])
-        ->select('pelangganId', 'pelangganKode', 'pelangganNama', 'pelangganRt', 'pelangganRw', 'pelangganGolonganId')
-        ->orderBy('created_at', 'desc');
+    {
+        if ($request->ajax()) {
+            // Fix: Use correct primary key for searching/filtering and datatables
+            $data = Pelanggan::with([
+                    'golongan',
+                    'tagihanTerakhir.bulan',
+                    'tagihanBelumLunas'
+                ])
+                ->select('pelangganId', 'pelangganKode', 'pelangganNama', 'pelangganRt', 'pelangganRw', 'pelangganGolonganId')
+                ->whereNull('deleted_at')
+                ->orderBy('created_at', 'desc');
 
-        return datatables()::of($data)
-            ->addIndexColumn()
-            ->setRowId('pelangganId')
-            ->order(function ($query) {
-                $query->orderBy('pelangganId', 'desc');
-            })
-            ->addColumn('action', function($row){
-                $encodedKode = Crypt::encryptString($row->pelangganKode);
-                return '<div class="btn-group" role="group" aria-label="Basic example">
-                            <a href="javascript:void(0)" data-toggle="tooltip" data-id="'.$encodedKode.'" class="edit btn btn-primary btn-xs">
-                                <i class="fa-regular fa-eye"></i> Lihat
-                            </a>
-                        </div>';
-            })
-            ->editColumn('pelangganGolonganId', function($row){
-                return optional($row->golongan)->golonganNama ?? '-';
-            })
-            ->addColumn('pelangganAlamat', function($row){
-                return $row->pelangganRt . '/' . $row->pelangganRw;
-            })
-            ->addColumn('tagihanTerakhir', function($row){
-                if ($row->tagihanTerakhir) {
-                    return optional($row->tagihanTerakhir->bulan)->bulanNama . ' - ' . $row->tagihanTerakhir->tagihanTahun;
-                }
-                return '-';
-            })
-            ->addColumn('tagihanBelumLunas', function($row){
-                $jumlahBelumLunas = $row->tagihanBelumLunas->count();
+            // Use datatables with correct primary key and search columns
+            return datatables()::of($data)
+                ->addIndexColumn()
+                ->setRowId('pelangganId')
+                ->filter(function ($query) use ($request) {
+                    // Custom search logic to avoid searching on non-existent 'id' column
+                    if ($search = $request->get('search')['value'] ?? null) {
+                        $search = strtolower($search);
+                        $query->where(function ($q) use ($search) {
+                            $q->whereRaw('LOWER(`pelangganKode`) LIKE ?', ["%{$search}%"])
+                              ->orWhereRaw('LOWER(`pelangganNama`) LIKE ?', ["%{$search}%"])
+                              ->orWhereRaw('LOWER(`pelangganGolonganId`) LIKE ?', ["%{$search}%"]);
+                        });
+                    }
+                })
+                ->order(function ($query) {
+                    $query->orderBy('pelangganId', 'desc');
+                })
+                ->addColumn('action', function($row){
+                    $encodedKode = Crypt::encryptString($row->pelangganKode);
+                    return '<div class="btn-group" role="group" aria-label="Basic example">
+                                <a href="javascript:void(0)" data-toggle="tooltip" data-id="'.$encodedKode.'" class="edit btn btn-primary btn-xs">
+                                    <i class="fa-regular fa-eye"></i> Lihat
+                                </a>
+                            </div>';
+                })
+                ->editColumn('pelangganGolonganId', function($row){
+                    return optional($row->golongan)->golonganNama ?? '-';
+                })
+                ->addColumn('pelangganAlamat', function($row){
+                    return $row->pelangganRt . '/' . $row->pelangganRw;
+                })
+                ->addColumn('tagihanTerakhir', function($row){
+                    if ($row->tagihanTerakhir) {
+                        return optional($row->tagihanTerakhir->bulan)->bulanNama . ' - ' . $row->tagihanTerakhir->tagihanTahun;
+                    }
+                    return '-';
+                })
+                ->addColumn('tagihanBelumLunas', function($row){
+                    $jumlahBelumLunas = $row->tagihanBelumLunas->count();
 
-                if ($jumlahBelumLunas >= 3) {
-                    return '<span class="text-danger">' . $jumlahBelumLunas . '</span>';
-                }
-                return $jumlahBelumLunas > 0 ? $jumlahBelumLunas : '-';
-            })
-            ->rawColumns(['action', 'tagihanBelumLunas'])
-            ->make(true);
+                    if ($jumlahBelumLunas >= 3) {
+                        return '<span class="text-danger">' . $jumlahBelumLunas . '</span>';
+                    }
+                    return $jumlahBelumLunas > 0 ? $jumlahBelumLunas : '-';
+                })
+                ->rawColumns(['action', 'tagihanBelumLunas'])
+                ->make(true);
+        }
+
+        return view('layanans.index', [
+            'form' => $this->grid,
+            'title' => $this->title,
+            'breadcrumb' => $this->breadcrumb,
+            'route' => $this->route,
+            'primaryKey' => $this->primaryKey
+        ]);
     }
-
-    return view('layanans.index', [
-        'form' => $this->grid,
-        'title' => $this->title,
-        'breadcrumb' => $this->breadcrumb,
-        'route' => $this->route,
-        'primaryKey' => $this->primaryKey
-    ]);
-}
 
 
     public function getInfoTagihan(Request $request)

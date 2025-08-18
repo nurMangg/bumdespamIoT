@@ -489,6 +489,13 @@
                 stopScanner();
             });
 
+            // Reset validasi saat modal meter reading ditutup
+            $('#meterReadingModal').on('hidden.bs.modal', function () {
+                $('#tagihanMeterAkhir').removeClass('is-invalid');
+                $('.invalid-feedback').remove();
+                $('#submitMeterReading').prop('disabled', false);
+            });
+
             // Form submit handler
             $('#formCekTagihan').on('submit', function(e) {
                 e.preventDefault();
@@ -519,6 +526,13 @@
                         // Reset input fields
                         $('#tagihanMeterAkhir').val('');
 
+                        // Reset validasi
+                        $('#tagihanMeterAkhir').removeClass('is-invalid');
+                        $('.invalid-feedback').remove();
+
+                        // Disable tombol submit sampai ada input yang valid
+                        $('#submitMeterReading').prop('disabled', true);
+
                         // Show the modal
                         $('#meterReadingModal').modal('show');
                     },
@@ -528,14 +542,51 @@
                 });
             });
 
+            // Validasi input meter sekarang
+            $('#tagihanMeterAkhir').on('input', function() {
+                var meterSekarang = parseInt($(this).val()) || 0;
+                var meterLalu = parseInt($('#tagihanMeterAwal').val()) || 0;
+
+                // Hapus pesan error sebelumnya
+                $(this).removeClass('is-invalid');
+                $('.invalid-feedback').remove();
+
+                if (!$(this).val()) {
+                    // Jika input kosong, disable tombol submit
+                    $('#submitMeterReading').prop('disabled', true);
+                } else if (meterSekarang < meterLalu) {
+                    $(this).addClass('is-invalid');
+                    $(this).after('<div class="invalid-feedback">Stand meter sekarang harus lebih tinggi atau sama dengan stand meter lalu (' + meterLalu + ')</div>');
+
+                    // Disable tombol submit
+                    $('#submitMeterReading').prop('disabled', true);
+                } else {
+                    // Enable tombol submit jika valid
+                    $('#submitMeterReading').prop('disabled', false);
+                }
+            });
+
             // Submit meter reading
             $('#submitMeterReading').click(function() {
                 var form = $('#meterReadingForm')[0];
+                var meterSekarang = parseInt($('#tagihanMeterAkhir').val()) || 0;
+                var meterLalu = parseInt($('#tagihanMeterAwal').val()) || 0;
 
+                // Validasi form HTML5
                 if (!form.checkValidity()) {
                     form.reportValidity();
                     return;
                 }
+
+                // Validasi tambahan untuk meter
+                if (meterSekarang < meterLalu) {
+                    toastr.error('Stand meter sekarang harus lebih tinggi atau sama dengan stand meter lalu (' + meterLalu + ')');
+                    $('#tagihanMeterAkhir').focus();
+                    return;
+                }
+
+                // Disable tombol submit selama proses
+                $(this).prop('disabled', true);
 
                 $.ajax({
                     url: '{{ route('input-tagihan.store') }}',
@@ -552,12 +603,22 @@
                             $('#meterReadingModal').modal('hide');
                             toastr.success('Data berhasil disimpan');
                             form.reset();
+
+                            // Reset validasi dan state tombol
+                            $('#tagihanMeterAkhir').removeClass('is-invalid');
+                            $('.invalid-feedback').remove();
+                            $('#submitMeterReading').prop('disabled', true);
+
                             $('#tagihanTable').DataTable().ajax.reload();
                             $('#searchPelanggan').val(null).trigger('change');
                         }, 1000);
                     },
                     error: function(xhr) {
                         toastr.error(xhr.responseJSON?.message || 'Gagal menyimpan data');
+                    },
+                    complete: function() {
+                        // Re-enable tombol submit setelah selesai
+                        $('#submitMeterReading').prop('disabled', false);
                     }
                 });
             });

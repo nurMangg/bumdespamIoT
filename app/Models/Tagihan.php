@@ -31,8 +31,9 @@ class Tagihan extends Model
 
     public function pelanggan()
     {
-        return $this->belongsTo(Pelanggan::class, 'tagihanPelangganId', 'pelangganId');
+        return $this->belongsTo(Pelanggan::class, 'tagihanPelangganId', 'pelangganId')->withTrashed();
     }
+
 
     public function pembayaranInfo()
     {
