@@ -13,7 +13,6 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Crypt;
-use Illuminate\Support\Facades\Http;
 
 class TagihanController extends Controller
 {
@@ -57,56 +56,65 @@ class TagihanController extends Controller
             ]
         );
     }
-    
-    public function index(Request $request)
-    {
-        if ($request->ajax()) {
-            $data = Pelanggan::select('pelangganId', 'pelangganKode', 'pelangganNama', 'pelangganRt', 'pelangganRw', 'pelangganGolonganId')
-                ->orderBy('created_at', 'desc')
-                ->get();
-            return datatables()::of($data)
-                ->addIndexColumn()
-                ->addColumn('action', function($row){
-                    $encodedKode = Crypt::encryptString($row->pelangganKode);
-                    return '<div class="btn-group" role="group" aria-label="Basic example">
-                                <a href="javascript:void(0)" data-toggle="tooltip" data-id="'.$encodedKode.'" data-original-title="Edit" class="edit btn btn-primary btn-xs"><i class="fa-regular fa-eye"></i> Lihat</a>
-                            </div>';
-                })
-                ->editColumn('pelangganGolonganId', function($row){
-                    return Golongan::find($row->pelangganGolonganId)->golonganNama;
-                })
-                ->addColumn('pelangganAlamat', function($row){
-                    return $row->pelangganRt . '/' . $row->pelangganRw;
-                })
-                ->addColumn('tagihanTerakhir', function($row){
-                    $tagihan = Tagihan::where('tagihanPelangganId', $row->pelangganId)->orderBy('created_at', 'desc')->first();
-                    return $tagihan ? Bulan::where('bulanId',$tagihan->tagihanBulan)->first()->bulanNama . ' - ' . $tagihan->tagihanTahun : '-';
-                })
-                ->addColumn('tagihanBelumLunas', function($row){
-                    $jumlahBelumLunas = Tagihan::where('tagihanPelangganId', $row->pelangganId)
-                        ->where('tagihanStatus', '!=', 'Lunas')
-                        ->count();
-                    
-                    if ($jumlahBelumLunas >= 3) {
-                        return '<span class="text-danger">' . $jumlahBelumLunas . ' </span>';
-                    } else {
-                        return $jumlahBelumLunas > 0 ? $jumlahBelumLunas : '-';
-                    }
-                })
-                ->rawColumns(['action', 'tagihanBelumLunas'])
-                ->make(true);
-        }
-        
 
-        return view('layanans.index', 
-            [
-                'form' => $this->grid, 
-                'title' => $this->title,
-                'breadcrumb' => $this->breadcrumb,
-                'route' => $this->route,
-                'primaryKey' => $this->primaryKey
-        ]);
+    public function index(Request $request)
+{
+    if ($request->ajax()) {
+        $data = Pelanggan::with([
+            'golongan',
+            'tagihanTerakhir.bulan', // Relasi ke tagihan terakhir + bulan
+            'tagihanBelumLunas'      // Relasi custom untuk tagihan belum lunas/pending
+        ])
+        ->select('pelangganId', 'pelangganKode', 'pelangganNama', 'pelangganRt', 'pelangganRw', 'pelangganGolonganId')
+        ->orderBy('created_at', 'desc');
+
+        return datatables()::of($data)
+            ->addIndexColumn()
+            ->setRowId('pelangganId')
+            ->order(function ($query) {
+                $query->orderBy('pelangganId', 'desc');
+            })
+            ->addColumn('action', function($row){
+                $encodedKode = Crypt::encryptString($row->pelangganKode);
+                return '<div class="btn-group" role="group" aria-label="Basic example">
+                            <a href="javascript:void(0)" data-toggle="tooltip" data-id="'.$encodedKode.'" class="edit btn btn-primary btn-xs">
+                                <i class="fa-regular fa-eye"></i> Lihat
+                            </a>
+                        </div>';
+            })
+            ->editColumn('pelangganGolonganId', function($row){
+                return optional($row->golongan)->golonganNama ?? '-';
+            })
+            ->addColumn('pelangganAlamat', function($row){
+                return $row->pelangganRt . '/' . $row->pelangganRw;
+            })
+            ->addColumn('tagihanTerakhir', function($row){
+                if ($row->tagihanTerakhir) {
+                    return optional($row->tagihanTerakhir->bulan)->bulanNama . ' - ' . $row->tagihanTerakhir->tagihanTahun;
+                }
+                return '-';
+            })
+            ->addColumn('tagihanBelumLunas', function($row){
+                $jumlahBelumLunas = $row->tagihanBelumLunas->count();
+
+                if ($jumlahBelumLunas >= 3) {
+                    return '<span class="text-danger">' . $jumlahBelumLunas . '</span>';
+                }
+                return $jumlahBelumLunas > 0 ? $jumlahBelumLunas : '-';
+            })
+            ->rawColumns(['action', 'tagihanBelumLunas'])
+            ->make(true);
     }
+
+    return view('layanans.index', [
+        'form' => $this->grid,
+        'title' => $this->title,
+        'breadcrumb' => $this->breadcrumb,
+        'route' => $this->route,
+        'primaryKey' => $this->primaryKey
+    ]);
+}
+
 
     public function getInfoTagihan(Request $request)
     {
@@ -118,20 +126,19 @@ class TagihanController extends Controller
                 $tagihan = Tagihan::whereNull('deleted_at')->where('tagihanPelangganId', $pelanggan->pelangganId)->get();
 
             }
-            
-            $tanggalSekarang = Carbon::now();
 
+            $tanggalSekarang = Carbon::now();
+            // $tanggalSekarang = Carbon::createFromDate(2023, 10, 15); // Atur tanggal manual
             $bulanIni = $tanggalSekarang->month;
             $tahunIni = $tanggalSekarang->year;
-            
-            $tanggalBulanDepan = $tanggalSekarang->copy()->addMonth();
+
+            $tanggalBulanDepan = $tanggalSekarang->addMonth();
             $bulanDepan = $tanggalBulanDepan->month;
             $tahunDepan = $tanggalBulanDepan->year;
-            
-            $tanggalBulanLalu = $tanggalSekarang->copy()->subMonth();
+
+            $tanggalBulanLalu = $tanggalSekarang->subMonth();
             $bulanLalu = $tanggalBulanLalu->month;
             $tahunLalu = $tanggalBulanLalu->year;
-
 
             // dd($bulanIni, $tahunIni, $bulanLalu, $tahunLalu);
 
@@ -151,6 +158,6 @@ class TagihanController extends Controller
                 'jumlahInputTagihanBulanDepan' => $jumlahTagihanBulanDepan
             ]);
         };
-        
+
     }
 }

@@ -47,76 +47,127 @@ class TransaksiController extends Controller
             array(
                 'label' => 'Meter Awal (m3)',
                 'field' => 'tagihanMAwal',
-                
+
             ),
             array(
                 'label' => 'Meter Akhir (m3)',
                 'field' => 'tagihanMAkhir',
-                
+
             ),
             array(
                 'label' => 'Status Tagihan',
                 'field' => 'tagihanStatus',
-                
+
             ),
         );
     }
-    
+
     public function index(Request $request)
-    {
-        if ($request->ajax()) {
-            if (Auth::user()->userRoleId != Roles::where('roleName', 'pelanggan')->first()->roleId) {
-                $data = Tagihan::all();
-            } else {
-                $user = Pelanggan::where('pelangganUserId', Auth::user()->id)->first();
-                $data = Tagihan::where('tagihanPelangganId', $user->pelangganId)->get();
-            }
-            return datatables()::of($data)
-                    ->addIndexColumn()
-                    ->addColumn('action', function($row){
-                        $tagihanId = Crypt::encryptString($row->tagihanId);
-                        if ($row->tagihanStatus == 'Lunas') {
-                            return '<div class="btn-group" role="group" aria-label="Basic example">
-                                        <a href="javascript:void(0)" data-toggle="tooltip" data-id="'.$tagihanId.'" data-original-title="Lunas" class="bayar btn btn-primary btn-xs"><i class="fa-solid fa-circle-check"></i> Lihat</a>
-                                    </div>';
-                        } else {
-                            return '<div class="btn-group" role="group" aria-label="Basic example">
-                                        <a href="javascript:void(0)" data-toggle="tooltip" data-id="'.$tagihanId.'" data-original-title="Bayar" class="bayar btn btn-success btn-xs"><i class="fa-solid fa-circle-dollar-to-slot"></i> Bayar</a>
-                                    </div>';
-                        }
-                    })
-                    ->editColumn('tagihanStatus', function($row){
-                        if ($row->tagihanStatus == 'Lunas') {
-                            return '<span class="badge badge-success">Lunas</span>';
-                        } elseif ($row->tagihanStatus == 'Pending') {
-                            return '<span class="badge badge-warning">Pending</span>';
-                        } else {
-                            return '<span class="badge badge-danger">Belum Lunas</span>';
-                        }
-                    })
-                    ->addColumn('tagihanJumlah', function($row){
-                        $jumlah = Pembayaran::where('pembayaranTagihanId', $row->tagihanId)->first()->pembayaranJumlah ?? 0;
-                        return 'Rp ' . number_format($jumlah, 0, ',', '.');
-                    })
-                    ->addColumn('tagihanTerbit', function($row){
-                        return Bulan::where('bulanId', $row->tagihanBulan)->first()->bulanNama . ' - ' . $row->tagihanTahun;
-                    })
-                    ->addColumn('tagihanPelangganNama', function($row){
-                        return $row->pelanggan->pelangganNama;
-                    })
-                    ->rawColumns(['action', 'tagihanStatus'])
-                    ->make(true);
+{
+    if ($request->ajax()) {
+        $isAdmin = Auth::user()->userRoleId != Roles::where('roleName', 'pelanggan')->first()->roleId;
+
+        if ($isAdmin) {
+            $data = Tagihan::with([
+                'pelanggan' => function($q) {
+                    $q->withTrashed();
+                },
+                'pembayaranInfo',
+                'bulan'
+            ]); // Remove select to fetch all columns
+        } else {
+            $user = Pelanggan::where('pelangganUserId', Auth::user()->id)->first();
+            $data = Tagihan::with([
+                'pelanggan' => function($q) {
+                    $q->withTrashed();
+                },
+                'pembayaranInfo',
+                'bulan'
+            ])
+            ->where('tagihanPelangganId', $user->pelangganId); // Remove select to fetch all columns
         }
 
-        return view('transaksis.index', 
-            [
-                'grid' => $this->grid, 
-                'title' => $this->title,
-                'breadcrumb' => $this->breadcrumb,
-                'route' => $this->route,
-                'primaryKey' => $this->primaryKey
-        ]);
+        // Apply filters - default to current month/year
+        $filterBulan = $request->get('filter_bulan', date('n')); // Current month (1-12)
+        $filterTahun = $request->get('filter_tahun', date('Y')); // Current year
+        $filterStatus = $request->get('filter_status'); // Status filter
+
+        if ($filterBulan && $filterBulan != 'all') {
+            $data->where('tagihanBulan', $filterBulan);
+        }
+
+        if ($filterTahun && $filterTahun != 'all') {
+            $data->where('tagihanTahun', $filterTahun);
+        }
+
+        if ($filterStatus && $filterStatus != 'all') {
+            $data->where('tagihanStatus', $filterStatus);
+        }
+
+        return datatables()::of($data)
+            ->addIndexColumn()
+            ->setRowId('tagihanId') // Tell DataTables to use tagihanId as row identifier
+            ->order(function ($query) {
+                $query->orderBy('tagihanId', 'desc'); // Set default ordering
+            })
+            ->addColumn('action', function($row){
+                $tagihanId = Crypt::encryptString($row->tagihanId);
+                if ($row->tagihanStatus == 'Lunas') {
+                    return '<div class="btn-group" role="group">
+                                <a href="javascript:void(0)" data-toggle="tooltip" data-id="'.$tagihanId.'" data-original-title="Lihat Detail" class="bayar btn btn-primary btn-xs">
+                                    <i class="fa-solid fa-circle-check"></i> Lihat
+                                </a>
+                            </div>';
+                } else {
+                    return '<div class="btn-group" role="group">
+                                <a href="javascript:void(0)" data-toggle="tooltip" data-id="'.$tagihanId.'" data-original-title="Bayar Tagihan" class="bayar btn btn-success btn-xs">
+                                    <i class="fa-solid fa-circle-dollar-to-slot"></i> Bayar
+                                </a>
+                            </div>';
+                }
+            })
+            ->editColumn('tagihanStatus', function($row){
+                switch($row->tagihanStatus) {
+                    case 'Lunas':
+                        return '<span class="badge badge-success">Lunas</span>';
+                    case 'Pending':
+                        return '<span class="badge badge-warning">Pending</span>';
+                    default:
+                        return '<span class="badge badge-danger">Belum Lunas</span>';
+                }
+            })
+            ->addColumn('tagihanJumlah', function($row){
+                return 'Rp ' . number_format(optional($row->pembayaranInfo)->pembayaranJumlah ?? 0, 0, ',', '.');
+            })
+            ->addColumn('tagihanTerbit', function($row){
+                return optional($row->bulan)->bulanNama . ' - ' . $row->tagihanTahun;
+            })
+            ->addColumn('tagihanPelangganNama', function($row){
+                return optional($row->pelanggan)->pelangganNama ?? '<i class="text-muted">Pelanggan Dihapus</i>';
+            })
+            ->rawColumns(['action', 'tagihanStatus', 'tagihanPelangganNama'])
+            ->make(true);
     }
+
+    // Data untuk dropdown filter
+    $bulanList = Bulan::orderBy('bulanId')->get();
+    $tahunList = Tagihan::select('tagihanTahun')
+        ->distinct()
+        ->orderBy('tagihanTahun', 'desc')
+        ->pluck('tagihanTahun');
+
+    return view('transaksis.index', [
+        'grid' => $this->grid,
+        'title' => $this->title,
+        'breadcrumb' => $this->breadcrumb,
+        'route' => $this->route,
+        'primaryKey' => $this->primaryKey,
+        'bulanList' => $bulanList,
+        'tahunList' => $tahunList,
+        'currentMonth' => date('n'),
+        'currentYear' => date('Y')
+    ]);
+}
 
     public function getInfoAllTransaksi(Request $request)
     {
@@ -128,8 +179,8 @@ class TransaksiController extends Controller
                 $tagihan = Tagihan::whereNull('deleted_at')->where('tagihanPelangganId', $pelanggan->pelangganId)->get();
 
             }
-            
-            
+
+
             $tagihan->transform(function($item) {
                 $item->tagihanTotal = ($item->tagihanMAkhir - $item->tagihanMAwal) * $item->tagihanInfoTarif;
                 $item->tagihanJumlahTotal = $item->tagihanTotal + $item->tagihanInfoAbonemen;
@@ -192,9 +243,10 @@ class TransaksiController extends Controller
             ->set_option('isHtml5ParserEnabled', true)
             ->set_option('isPhpEnabled', true)
             ->set_option('defaultFont', 'Tahomaku');
-            // ->setOption('fontDir', storage_path('app/public/fonts'));
 
-        return $pdf->stream('struk-pembayaran-' . $data['pelangganKode'] . '-' . $data['tagihanKode'] . '.pdf');
+        //return $pdf->stream('struk-pembayaran-' . $data['pelangganKode'] . '-' . $data['tagihanKode'] . '.pdf');
+
+        return view('transaksis.struk.index2', compact('data'));
 
     }
 }

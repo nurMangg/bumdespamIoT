@@ -77,7 +77,7 @@ class LaporanTransaksiController extends Controller
                 'label' => 'Desa',
                 'field' => 'pelangganDesa',
                 'type' => 'select',
-                'options' => Pelanggan::all()->pluck('pelangganDesa', 'pelangganDesa')->unique()->sort()->toArray(), 
+                'options' => Pelanggan::all()->pluck('pelangganDesa', 'pelangganDesa')->unique()->sort()->toArray(),
                 'placeholder' => 'Semua Desa',
                 'width' => 3,
                 'required' => true
@@ -86,7 +86,7 @@ class LaporanTransaksiController extends Controller
                 'label' => 'RT',
                 'field' => 'pelangganRt',
                 'type' => 'select',
-                'options' => Pelanggan::all()->pluck('pelangganRt', 'pelangganRt')->unique()->sort()->toArray(), 
+                'options' => Pelanggan::all()->pluck('pelangganRt', 'pelangganRt')->unique()->sort()->toArray(),
                 'placeholder' => 'Semua RT',
                 'width' => 3,
                 'required' => true
@@ -95,12 +95,12 @@ class LaporanTransaksiController extends Controller
                 'label' => 'RW',
                 'field' => 'pelangganRw',
                 'type' => 'select',
-                'options' => Pelanggan::all()->pluck('pelangganRw', 'pelangganRw')->unique()->sort()->toArray(), 
+                'options' => Pelanggan::all()->pluck('pelangganRw', 'pelangganRw')->unique()->sort()->toArray(),
                 'placeholder' => 'Semua RW',
                 'width' => 3,
                 'required' => true
             ),
-            
+
         );
 
         $this->grid = array(
@@ -145,11 +145,11 @@ class LaporanTransaksiController extends Controller
                 'field' => 'kasir'
             )
 
-            
-            
+
+
         );
     }
-    
+
     public function index(Request $request)
     {
         if ($request->ajax()) {
@@ -162,7 +162,7 @@ class LaporanTransaksiController extends Controller
                 ->where('tagihanStatus', 'Lunas')
                 ->orderBy('tagihanDibayarPadaWaktu', 'desc');
             }
-            
+
 
                 if ($request->has('filter')) {
                     // Apply filters specified in the request
@@ -240,10 +240,10 @@ class LaporanTransaksiController extends Controller
                     ->make(true);
         }
 
-        return view('laporans.index', 
+        return view('laporans.index',
             [
                 'form' => $this->form,
-                'grid' => $this->grid, 
+                'grid' => $this->grid,
                 'title' => $this->title,
                 'breadcrumb' => $this->breadcrumb,
                 'route' => $this->route,
@@ -333,7 +333,7 @@ class LaporanTransaksiController extends Controller
             'totalSemuaTagihanLunas' => $data->where('tagihanStatus', 'Lunas')->sum('tagihanJumlahTotal')
         ];
 
-    
+
         // Generate PDF
         $pdf = Pdf::loadView('laporans.pdf.transaksi', ['data' => $data, 'title' => $this->title, 'grid' => $this->grid, 'dataJumlah' => $dataJumlah, 'filterTanggal' => $filterTanggal, 'filterPelanggan' => '-'])
             ->setPaper('a4', 'landscape');

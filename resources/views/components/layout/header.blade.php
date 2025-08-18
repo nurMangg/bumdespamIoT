@@ -219,7 +219,7 @@
                         <li class="nav-item">
                             <a href="{{ route('input-tagihan-iot.index') }}" class="nav-link {{ Route::is('input-tagihan-iot.index') ? 'active' : '' }}">
                                 <i class="nav-icon fas fa-file-alt"></i>
-                                <p>Input Tagihan</p>
+                                <p>Input Tagihan IoT</p>
                             </a>
                         </li>
                         @foreach ($megamenus as $megaM)

@@ -46,12 +46,16 @@ Route::get('/dashboard', function () {
         return view('pelanggan.dashboard');
     } else if (Auth::user()->userRoleId == Roles::where('roleName', 'kasir')->first()->roleId) {
         return view('dashboard-kasir');
-    } else if (Auth::user()->userRoleId == Roles::where('roleName', 'lapangan')->first()->roleId) {
-        return view('dashboard-lapangan');
+    // } else if (Auth::user()->userRoleId == Roles::where('roleName', 'lapangan')->first()->roleId) {
+    //     return view('dashboard-lapangan');
     } else {
         return view('dashboard');
     }
 })->middleware(['auth', 'verified'])->name('dashboard');
+
+Route::get('/dashboard-lapangan', function () {
+    return view('dashboard-lapangan');
+})->middleware(['auth', 'verified'])->name('dashboard.lapangan');
 
 Route::get('/dashboard-iot',[IoTController::class, 'index'] )->middleware(['auth', 'verified'])->name('dashboard.iot');
 Route::resource('/input-tagihan-iot', InputTagihanFromBLController::class);

@@ -13,7 +13,7 @@
               </ol>
           </div><!-- /.col -->
           <div class="col-sm-6">
-            
+
           </div><!-- /.col -->
         </div><!-- /.row -->
       </div><!-- /.container-fluid -->
@@ -41,7 +41,7 @@
                 <div class="col-12 col-sm-6 col-md-4">
                   <div class="info-box">
                     <span class="info-box-icon bg-warning elevation-1"><i class="fas fa-file-invoice"></i></span>
-      
+
                     <div class="info-box-content">
                       <span class="info-box-text" id="BulanLalu">Jumlah Tagihan Bulan Lalu</span>
                       <span class="info-box-number" id="jumlahTagihanBulanLalu">
@@ -56,7 +56,7 @@
                 <div class="col-12 col-sm-6 col-md-4">
                   <div class="info-box mb-3">
                     <span class="info-box-icon bg-primary elevation-1"><i class="fas fa-file-invoice"></i></span>
-      
+
                     <div class="info-box-content">
                       <span class="info-box-text" id="BulanIni">Jumlah Tagihan Bulan Ini</span>
                       <span class="info-box-number" id="jumlahTagihanBulanIni"></span>
@@ -69,7 +69,7 @@
                 <div class="col-12 col-sm-6 col-md-4">
                   <div class="info-box mb-3">
                     <span class="info-box-icon bg-success elevation-1"><i class="fas fa-file-invoice"></i></span>
-      
+
                     <div class="info-box-content">
                       <span class="info-box-text" id="BulanDepan">Jumlah Tagihan Bulan Depan</span>
                       <span class="info-box-number" id="jumlahTagihanBulanDepan"></span>
@@ -79,10 +79,10 @@
                   <!-- /.info-box -->
                 </div>
                 <!-- /.col -->
-      
+
                 <!-- fix for small devices only -->
                 <div class="clearfix hidden-md-up"></div>
-        
+
               </div>
             </div>
             <!-- /.card-body -->
@@ -94,7 +94,7 @@
             <div class="card">
               <div class="card-header">
                 <h3 class="card-title">Daftar {{ $title ?? env('APP_NAME') }}</h3>
-                
+
               </div>
               <!-- /.card-header -->
               <div class="card-body">
@@ -157,7 +157,7 @@
               @foreach ($form as $field)
                   {data: '{{ $field['field'] }}', name: '{{ $field['field'] }}'},
               @endforeach
-              
+
               {data: 'action', name: 'action', orderable: false, searchable: false},
             ],
             order: [[0, 'desc']],
@@ -197,7 +197,7 @@
 
         $('#laravel_datatable').DataTable().ajax.reload(null, false);
 
-    }    
+    }
 </script>
-    
+
 @endsection

@@ -32,6 +32,19 @@ class Pelanggan extends Model
         return $this->belongsTo(Golongan::class, 'pelangganGolonganId', 'golonganId');
     }
 
+    public function tagihanTerakhir()
+    {
+        return $this->hasOne(Tagihan::class, 'tagihanPelangganId', 'pelangganId')
+                    ->latestOfMany('tagihanId');
+    }
+
+    public function tagihanBelumLunas()
+    {
+        return $this->hasMany(Tagihan::class, 'tagihanPelangganId', 'pelangganId')
+                    ->whereIn('tagihanStatus', ['Belum Lunas', 'Pending']);
+    }
+
+
     public function tagihan()
     {
         return $this->hasMany(Tagihan::class, 'tagihanPelangganId', 'pelangganId');
@@ -41,32 +54,6 @@ class Pelanggan extends Model
     {
         return $this->belongsTo(User::class, 'pelangganUserId', 'id');
     }
-    
-    protected static function boot()
-    {
-        parent::boot();
-    
-        // Soft delete semua tagihan saat pelanggan dihapus
-        static::deleting(function ($pelanggan) {
-            if ($pelanggan->isForceDeleting()) {
-                // Jika force delete, hapus permanen tagihan juga
-                $pelanggan->tagihan()->withTrashed()->forceDelete();
-            } else {
-                // Soft delete tagihan
-                $pelanggan->tagihan()->each(function ($tagihan) {
-                    $tagihan->delete();
-                });
-            }
-        });
-    
-        // Restore otomatis tagihan saat pelanggan di-restore
-        static::restoring(function ($pelanggan) {
-            $pelanggan->tagihan()->withTrashed()->get()->each(function ($tagihan) {
-                $tagihan->restore();
-            });
-        });
-    }
-
 
 }
 
